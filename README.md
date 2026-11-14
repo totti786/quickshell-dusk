@@ -1,10 +1,16 @@
 # Quickshell Dusk
 
-A startup-performance fork of [Quickshell](https://quickshell.org), maintained for
-[ii-dusk](https://github.com/totti786/ii-dusk). Based on upstream revision
+[Quickshell](https://quickshell.org) is a Qt Quick toolkit for building desktop
+shells, panels, launchers, and widgets on Wayland and X11. **Quickshell Dusk** is an
+independent fork focused on reducing QML startup overhead, maintained for
+[ii-dusk](https://github.com/totti786/ii-dusk). It keeps the upstream toolkit and
+APIs while adding scanner caches and compiled-QML disk caching.
+
+Based on upstream revision
 `9b0f339b19057f4731bf3b48293307d7ef241671` (0.3.2 + 11 commits).
 This is an independent fork; report fork bugs here rather than to upstream.
 Upstream history, licenses, QML APIs, and the `qs` / `quickshell` command names are preserved.
+Quickshell and the original toolkit are the work of its upstream contributors.
 
 ## Changes
 

@@ -3,7 +3,7 @@
 pkgname=quickshell-dusk-git
 pkgver=0.3.2.r11.g9b0f339
 pkgrel=1
-pkgdesc='Quickshell fork with QML startup scanning and compilation caches for ii-dusk'
+pkgdesc='Quickshell with faster startup through QML scanning and disk-cache optimizations'
 arch=(x86_64)
 url='https://github.com/totti786/quickshell-dusk'
 license=(LGPL-3.0-only GPL-3.0-only)
