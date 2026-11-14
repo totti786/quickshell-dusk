@@ -41,8 +41,19 @@ bool QmlScanner::hasFileContentChanged(const QString& path) const {
 	return newHash != it.value();
 }
 
+QString QmlScanner::dirKey(const QString& path) {
+	auto it = this->dirKeyCache.constFind(path);
+	if (it != this->dirKeyCache.constEnd()) return it.value();
+	auto key = QFileInfo(path).canonicalFilePath();
+	if (key.isEmpty()) key = QDir::cleanPath(path);
+	this->dirKeyCache.insert(path, key);
+	return key;
+}
+
 void QmlScanner::scanDir(const QDir& dir) {
-	if (this->scannedDirs.contains(dir)) return;
+	auto key = this->dirKey(dir.path());
+	if (this->scannedDirKeys.contains(key)) return;
+	this->scannedDirKeys.insert(key);
 	this->scannedDirs.push_back(dir);
 
 	const auto& path = dir.path();

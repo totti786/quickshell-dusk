@@ -4,6 +4,7 @@
 #include <qcontainerfwd.h>
 #include <qdir.h>
 #include <qhash.h>
+#include <qset.h>
 #include <qjsengine.h>
 #include <qloggingcategory.h>
 #include <qvector.h>
@@ -22,6 +23,13 @@ public:
 	void scanQmlRoot(const QString& path);
 
 	QVector<QDir> scannedDirs;
+	// scannedDirs.contains() compares QDirs, and QDir::operator== canonicalizes both paths
+	// (a readlink per path component) whenever they differ. With a few hundred directories
+	// and tens of thousands of imports that is hundreds of thousands of syscalls and seconds
+	// of startup, so membership is tracked by canonical path, computed once per input path.
+	QSet<QString> scannedDirKeys;
+	QHash<QString, QString> dirKeyCache;
+	QString dirKey(const QString& path);
 	QVector<QString> scannedFiles;
 	QHash<QString, QByteArray> fileHashes;
 	QHash<QString, QString> fileIntercepts;
