@@ -31,6 +31,7 @@ public:
 	QHash<QString, QString> dirKeyCache;
 	QString dirKey(const QString& path);
 	QVector<QString> scannedFiles;
+	QSet<QString> scannedQmlFiles;
 	QHash<QString, QByteArray> fileHashes;
 	QHash<QString, QString> fileIntercepts;
 
