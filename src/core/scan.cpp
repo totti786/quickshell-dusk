@@ -5,6 +5,7 @@
 #include <qcontainerfwd.h>
 #include <qcryptographichash.h>
 #include <qdir.h>
+#include <qstringbuilder.h>
 #include <qfileinfo.h>
 #include <qjsengine.h>
 #include <qjsonarray.h>
@@ -41,6 +42,36 @@ bool QmlScanner::hasFileContentChanged(const QString& path) const {
 	return newHash != it.value();
 }
 
+namespace {
+
+// A qmldir written by a previous run of this scanner. It is treated as if it were not
+// there: regenerated from the directory's files, and rewritten only when the text changed.
+constexpr const char* generatedQmldirMarker = "# quickshell-generated qmldir";
+
+bool isGeneratedQmldir(const QString& path) {
+	auto file = QFile(path);
+	if (!file.open(QFile::ReadOnly)) return false;
+	// At the end: Qt's qmldir parser rejects a file that opens with a comment.
+	return file.readAll().trimmed().endsWith(generatedQmldirMarker);
+}
+
+// Qt only caches compiled QML for local files, and finds a directory's qmldir on disk when
+// the importing file is local, so the synthesized qmldirs have to exist as real files for
+// types to be served as file: URLs. Failure (read-only config) is not an error: the in-memory
+// copy still serves qs: lookups, only the compile cache is lost for that directory.
+bool writeGeneratedQmldir(const QString& path, const QString& text) {
+	auto data = text.toUtf8();
+	auto existing = QFile(path);
+	if (existing.open(QFile::ReadOnly) && existing.readAll() == data) return true;
+	existing.close();
+
+	auto file = QFile(path);
+	if (!file.open(QFile::WriteOnly | QFile::Truncate)) return false;
+	return file.write(data) == data.size();
+}
+
+} // namespace
+
 QString QmlScanner::dirKey(const QString& path) {
 	auto it = this->dirKeyCache.constFind(path);
 	if (it != this->dirKeyCache.constEnd()) return it.value();
@@ -70,7 +101,9 @@ void QmlScanner::scanDir(const QDir& dir) {
 	auto entries = QVector<Entry>();
 
 	for (auto& name: dir.entryList(QDir::Files | QDir::NoDotAndDotDot)) {
-		if (name == "qmldir") {
+		if (name == "qmldir" && isGeneratedQmldir(dir.filePath(name))) {
+			// regenerated below
+		} else if (name == "qmldir") {
 			qCDebug(
 			    logQmlScanner
 			) << "Found qmldir file, qmldir synthesization will be disabled for directory"
@@ -130,7 +163,13 @@ void QmlScanner::scanDir(const QDir& dir) {
 		}
 
 		qCDebug(logQmlScanner) << "Synthesized qmldir for" << path << qPrintable("\n" + qmldir);
-		this->fileIntercepts.insert(QDir(path).filePath("qmldir"), qmldir);
+		auto qmldirPath = QDir(path).filePath("qmldir");
+		auto generated = qmldir % generatedQmldirMarker % '\n';
+		// Once it is a real file, it is served as one. The in-memory copy is only for
+		// directories that cannot be written.
+		if (!path.startsWith(this->rootPath.path()) || !writeGeneratedQmldir(qmldirPath, generated)) {
+			this->fileIntercepts.insert(qmldirPath, generated);
+		}
 	}
 }
 
