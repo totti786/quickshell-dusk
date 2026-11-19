@@ -26,6 +26,7 @@
 #include <qwindow.h>
 
 #include "../core/generation.hpp"
+#include "../core/memorytrim.hpp"
 #include "../core/qmlglobal.hpp"
 #include "../core/qmlscreen.hpp"
 #include "../core/region.hpp"
@@ -205,6 +206,7 @@ void ProxyWindowBase::connectWindow() {
 	}
 
 	this->window->setProxy(this);
+	qs::memtrim::trackWindowBuffers(this->window);
 
 	// clang-format off
 	QObject::connect(this->window, &QWindow::visibilityChanged, this, &ProxyWindowBase::onVisibleChanged);

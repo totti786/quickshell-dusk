@@ -24,6 +24,7 @@
 #include "imageprovider.hpp"
 #include "incubator.hpp"
 #include "logcat.hpp"
+#include "memorytrim.hpp"
 #include "plugin.hpp"
 #include "qsintercept.hpp"
 #include "reload.hpp"
@@ -56,6 +57,8 @@ EngineGeneration::EngineGeneration(const QDir& rootPath, QmlScanner scanner)
 	this->engine->addImageProvider("icon", new IconImageProvider());
 	this->engine->addImageProvider("qsimage", new QsImageProvider());
 	this->engine->addImageProvider("qspixmap", new QsPixmapProvider());
+
+	qs::memtrim::install();
 
 	QsEnginePlugin::runConstructGeneration(*this);
 }

@@ -158,6 +158,15 @@ if (USE_JEMALLOC)
 	# IMPORTED_TARGET not working for some reason
 	pkg_check_modules(JEMALLOC REQUIRED jemalloc)
 	target_link_libraries(quickshell PRIVATE ${JEMALLOC_LIBRARIES})
+
+	# Compiled-in jemalloc options (src/main.cpp). jemalloc reads them before MALLOC_CONF,
+	# which still overrides them option by option. Empty leaves jemalloc's own defaults.
+	set(JEMALLOC_MALLOC_CONF "narenas:1" CACHE STRING "Compiled-in jemalloc malloc_conf")
+	if (NOT JEMALLOC_MALLOC_CONF STREQUAL "")
+		target_compile_definitions(quickshell PRIVATE QS_JEMALLOC_MALLOC_CONF="${JEMALLOC_MALLOC_CONF}")
+		target_link_options(quickshell PRIVATE "LINKER:--export-dynamic-symbol=malloc_conf")
+	endif()
+	message(STATUS "  jemalloc malloc_conf: \"${JEMALLOC_MALLOC_CONF}\"")
 endif()
 
 install(CODE "
