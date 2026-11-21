@@ -22,8 +22,13 @@ pkgver() {
 }
 
 build() {
+    # ii-dusk imports none of Quickshell.X11, Quickshell.I3 or the greetd service, so they are left
+    # out: a smaller binary and fewer libraries to load. QS_FULL=1 builds every module again.
+    local modules=(-DX11=OFF -DI3=OFF -DSERVICE_GREETD=OFF)
+    [[ -n "${QS_FULL:-}" ]] && modules=()
     cmake -S "$srcdir/quickshell" -B "$srcdir/build" -G Ninja \
         -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+        "${modules[@]}" \
         -DCMAKE_INSTALL_PREFIX=/usr \
         '-DDISTRIBUTOR=AUR (quickshell-dusk-git)' \
         -DINSTALL_QML_PREFIX=lib/qt6/qml
