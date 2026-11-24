@@ -15,8 +15,8 @@ Quickshell and the original toolkit are the work of its upstream contributors.
 ## Changes
 
 - Cache canonical directory paths and directory membership during scans.
-- Serve eligible QML as local files so Qt can reuse its compiled QML disk cache.
-- Materialize generated `qmldir` metadata, rewriting it only when its content changes.
+- Serve the config from a symlink mirror as local files so Qt can reuse its compiled QML disk cache.
+- Resolve the config root once, pre-register synthesized modules and filter composite singletons per document.
 - Avoid repeated QML header parsing and import metadata lookups.
 - Route crash reports to this fork's issue tracker.
 
@@ -43,41 +43,21 @@ See [BUILD.md](BUILD.md) for direct CMake builds and dependencies. Fork builds
 should set `-DDISTRIBUTOR="Quickshell Dusk (local build)"`; the AUR recipe identifies
 itself automatically. Inherited upstream CI workflows are available for manual runs.
 
-## Generated module metadata
+## Disk cache and module metadata
 
-The scanner creates real `qmldir` files in writable config directories where there
-is no authored module metadata. Generated files end with:
+Qt only reuses its compiled-QML cache for local files, and Quickshell serves the
+config on a `qs:` scheme. The config is therefore mirrored as symlinks (plus the
+synthesized `qmldir` files) under the shell's runtime VFS directory and loaded from
+`file://`. Nothing is written to your config directory. `QS_NO_FILE_VFS=1` turns
+the mirror off.
 
-```text
-# quickshell-generated qmldir
-```
-
-They are runtime artifacts: exclude their exact paths from your config repository,
-while keeping authored module files tracked. ii-dusk already ignores its current
-218 generated paths. Add ignore entries when introducing new generated directories.
-Source changes are scanned again and generated content is refreshed as needed.
-
-Do not delete this metadata as a runtime cleanup step. Simply suppressing writes
-while retaining the file-backed loader breaks some implicit sibling-type imports.
-Read-only configs retain virtual metadata for explicit imports, but implicit sibling
-inheritance is a known limitation of the current fallback; writable configs are the
-supported fast path. Symlink aliases, conditional preprocessing, and singleton schema
-reloads have focused regression checks under `tests/startup`.
-
-## Measurements
-
-Warm-cache ii-dusk session restarts on one development machine, median of three:
-
-| Milestone | File-backed loader | Virtual loader without generated files |
-|---|---:|---:|
-| Wallpaper painted | 1.256 s | 2.096 s |
-| Dynamic Island painted | 2.080 s | 4.094 s |
-| Bar painted | 2.166 s | 4.221 s |
-| Desktop widgets begin loading | 4.956 s | 9.365 s |
-
-These compare the two working loading paths, not the isolated cost of files.
-They are not cold-boot results or a general performance guarantee. The virtual
-comparison used a temporary test build and is not a user-facing runtime option.
+Three more patches cut the QML loader thread's work: the config root's paths are
+resolved once, every synthesized `qs.*` module is registered up front, and each
+document only resolves the composite singletons whose names appear in its text
+(`QS_NO_SINGLETON_FILTER=1` turns that off; it needs a Qt that calls
+`resolvedCompositeSingletons()` through the PLT). The patches come from the
+ii-dusk `quickshell-build` set. Conditional preprocessing, symlink aliases and
+singleton schema reloads have regression checks under `tests/startup`.
 
 ## Development
 
