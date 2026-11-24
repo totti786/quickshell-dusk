@@ -35,6 +35,22 @@ QUrl QsUrlInterceptor::intercept(
 		qCDebug(logQsIntercept) << "Rewrote root intercept" << originalUrl << "to" << url;
 	}
 
+	// Files under the config root loaded by plain path (Quickshell.shellPath) must come from
+	// the same mirror, or their directory's synthesized qmldir (and singletons) is missing.
+	if (!this->fileVfsRoot.isEmpty() && url.isLocalFile()
+	    && type != QQmlAbstractUrlInterceptor::DataType::UrlString)
+	{
+		auto path = url.toLocalFile();
+		for (const auto& root: {this->configRoot.path(), this->configRoot.canonicalPath()}) {
+			if (!root.isEmpty() && path.startsWith(root % '/')) {
+				auto fileUrl =
+				    QUrl::fromLocalFile(this->fileVfsRoot % "/qs/" % path.sliced(root.length() + 1));
+				qCDebug(logQsIntercept) << "Rewrote local vfs intercept" << url << "to" << fileUrl;
+				return fileUrl;
+			}
+		}
+	}
+
 	if (url.scheme() == "qs") {
 		auto path = url.path();
 
@@ -42,6 +58,11 @@ QUrl QsUrlInterceptor::intercept(
 		// We want to blackhole any import resolution outside of the config folder as it breaks Qt
 		// but NOT file lookups that might be on "qs:/" due to a missing "file:/" prefix.
 		if (path.startsWith("@/qs/")) {
+			if (!this->fileVfsRoot.isEmpty()) {
+				auto fileUrl = QUrl::fromLocalFile(this->fileVfsRoot % "/qs/" % path.sliced(5));
+				qCDebug(logQsIntercept) << "Rewrote vfs intercept" << url << "to" << fileUrl;
+				return fileUrl;
+			}
 			path = this->configRoot.filePath(path.sliced(5));
 		} else if (!path.startsWith("/")) {
 			qCDebug(logQsIntercept) << "Blackholed import URL" << url;

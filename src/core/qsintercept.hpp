@@ -20,6 +20,10 @@ public:
 
 	QUrl intercept(const QUrl& originalUrl, QQmlAbstractUrlInterceptor::DataType type) override;
 
+	// When set, QML/JS/qmldir loads are served as file:// URLs from this mirror of the
+	// config (the directory holding "qs"), so Qt's QML disk cache can be used.
+	QString fileVfsRoot;
+
 private:
 	QDir configRoot;
 };

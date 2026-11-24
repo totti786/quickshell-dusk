@@ -29,10 +29,87 @@
 #include "qsintercept.hpp"
 #include "reload.hpp"
 #include "scan.hpp"
+#include "paths.hpp"
+#include <qfile.h>
+#include <qset.h>
+#include <qtenvironmentvariables.h>
+#include <qstringbuilder.h>
 
 namespace {
 QS_LOGGING_CATEGORY(logScene, "scene");
 }
+
+
+namespace {
+
+void mirrorConfigDir(
+    const QString& src,
+    const QString& dst,
+    const QString& rel,
+    const QSet<QString>& qmlDirs,
+    const QHash<QString, QString>& intercepts
+) {
+	QDir().mkpath(dst);
+	constexpr auto filter = QDir::AllEntries | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System;
+
+	for (const auto& e: QDir(dst).entryInfoList(filter)) {
+		if (e.isSymLink() || !e.isDir()) QFile::remove(e.filePath());
+		else if (!qmlDirs.contains(rel.isEmpty() ? e.fileName() : rel % '/' % e.fileName())) {
+			QDir(e.filePath()).removeRecursively();
+		}
+	}
+
+	for (const auto& e: QDir(src).entryInfoList(filter)) {
+		const auto name = e.fileName();
+		const auto childRel = rel.isEmpty() ? name : rel % '/' % name;
+		const auto s = src % '/' % name;
+		const auto t = dst % '/' % name;
+
+		if (e.isDir() && qmlDirs.contains(childRel)) {
+			mirrorConfigDir(s, t, childRel, qmlDirs, intercepts);
+		} else if (auto it = intercepts.constFind(s); it != intercepts.cend()) {
+			QFile f(t);
+			if (f.open(QFile::WriteOnly)) f.write(it->toUtf8());
+		} else {
+			QFile::link(s, t);
+		}
+	}
+
+	const auto qmldir = src % "/qmldir";
+	if (auto it = intercepts.constFind(qmldir); it != intercepts.cend() && !QFileInfo::exists(qmldir)) {
+		QFile f(dst % "/qmldir");
+		if (f.open(QFile::WriteOnly)) f.write(it->toUtf8());
+	}
+}
+
+QString buildFileVfs(const QDir& rootPath, const QmlScanner& scanner) {
+	auto* vfs = QsPaths::instance()->shellVfsDir();
+	if (!vfs) return QString();
+
+	const auto root = rootPath.path();
+	QSet<QString> qmlDirs;
+	auto addDirOf = [&](const QString& path) {
+		if (!path.startsWith(root % '/')) return;
+		auto rel = path.sliced(root.length() + 1);
+		while (true) {
+			auto i = rel.lastIndexOf('/');
+			if (i == -1) break;
+			rel = rel.first(i);
+			if (qmlDirs.contains(rel)) break;
+			qmlDirs.insert(rel);
+		}
+	};
+	for (const auto& f: scanner.scannedFiles) addDirOf(f);
+	for (auto it = scanner.fileIntercepts.cbegin(); it != scanner.fileIntercepts.cend(); ++it) {
+		addDirOf(it.key());
+	}
+
+	const auto out = vfs->filePath("filevfs");
+	mirrorConfigDir(root, out % "/qs", QString(), qmlDirs, scanner.fileIntercepts);
+	return out;
+}
+
+} // namespace
 
 static QHash<const QQmlEngine*, EngineGeneration*> g_generations; // NOLINT
 
@@ -48,7 +125,13 @@ EngineGeneration::EngineGeneration(const QDir& rootPath, QmlScanner scanner)
 	QObject::connect(this->engine, &QQmlEngine::warnings, this, &EngineGeneration::onEngineWarnings);
 
 	this->engine->addUrlInterceptor(&this->urlInterceptor);
-	this->engine->addImportPath("qs:@/");
+
+	if (!qEnvironmentVariableIsSet("QS_NO_FILE_VFS") && !this->scanner.scannedFiles.isEmpty()) {
+		this->urlInterceptor.fileVfsRoot = buildFileVfs(this->rootPath, this->scanner);
+	}
+
+	if (this->urlInterceptor.fileVfsRoot.isEmpty()) this->engine->addImportPath("qs:@/");
+	else this->engine->addImportPath(this->urlInterceptor.fileVfsRoot);
 
 	this->engine->setNetworkAccessManagerFactory(&this->interceptNetFactory);
 	this->incubationController.initLoop();

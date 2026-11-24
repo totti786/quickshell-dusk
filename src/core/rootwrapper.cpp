@@ -101,6 +101,9 @@ void RootWrapper::reloadGraph(bool hard) {
 	QUrl url;
 	url.setScheme("qs");
 	url.setPath("@/qs/" % rootFile.fileName());
+	if (!generation->urlInterceptor.fileVfsRoot.isEmpty()) {
+		url = QUrl::fromLocalFile(generation->urlInterceptor.fileVfsRoot % "/qs/" % rootFile.fileName());
+	}
 	auto component = QQmlComponent(generation->engine, url);
 
 	if (!component.isReady()) {
