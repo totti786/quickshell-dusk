@@ -1,4 +1,5 @@
 qt_add_executable(quickshell main.cpp)
+target_link_options(quickshell PRIVATE "LINKER:--export-dynamic-symbol=_ZNK11QQmlImports27resolvedCompositeSingletonsEv")
 
 install(TARGETS quickshell RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
