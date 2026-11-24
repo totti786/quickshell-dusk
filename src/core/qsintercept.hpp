@@ -16,15 +16,12 @@ QS_DECLARE_LOGGING_CATEGORY(logQsIntercept);
 
 class QsUrlInterceptor: public QQmlAbstractUrlInterceptor {
 public:
-	QsUrlInterceptor(const QDir& configRoot, const QHash<QString, QString>& fileIntercepts)
-	    : configRoot(configRoot)
-	    , fileIntercepts(fileIntercepts) {}
+	explicit QsUrlInterceptor(const QDir& configRoot): configRoot(configRoot) {}
 
 	QUrl intercept(const QUrl& originalUrl, QQmlAbstractUrlInterceptor::DataType type) override;
 
 private:
 	QDir configRoot;
-	const QHash<QString, QString>& fileIntercepts;
 };
 
 class QsInterceptDataReply: public QNetworkReply {

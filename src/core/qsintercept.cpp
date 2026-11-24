@@ -25,33 +25,6 @@ QUrl QsUrlInterceptor::intercept(
 ) {
 	auto url = originalUrl;
 
-	// Qt only keeps its compiled-QML disk cache for local files. Every type served on the
-	// qs: scheme is therefore recompiled from source on every start (~1600 files, ~13 s of
-	// the QML thread for a large shell). Hand Qt the real file: URL for any type that has no
-	// preprocessed override, so the cache applies. The directory qmldirs are still synthesized
-	// by the scanner, so a file: base asks for its qmldir through qs: below.
-	if (url.scheme() == "file" && type == QQmlAbstractUrlInterceptor::DataType::QmldirFile) {
-		auto path = url.path();
-		if (path.startsWith(this->configRoot.path() % '/') && this->fileIntercepts.contains(path)) {
-			url.setScheme("qs");
-			return url;
-		}
-	}
-
-	if (url.scheme() == "qs" && type == QQmlAbstractUrlInterceptor::DataType::QmlFile) {
-		auto path = url.path();
-		if (path.startsWith("@/qs/")) path = this->configRoot.filePath(path.sliced(5));
-		else if (!path.startsWith("/")) path = QString();
-
-		// The root file is where the engine starts from; keep it on qs: (one file, never cached).
-		if (!path.isEmpty() && !this->fileIntercepts.contains(path) && path != this->configRoot.filePath("shell.qml")) {
-			auto fileUrl = url;
-			fileUrl.setScheme("file");
-			fileUrl.setPath(path);
-			return fileUrl;
-		}
-	}
-
 	if (url.scheme() == "root") {
 		url.setScheme("qs");
 
@@ -82,9 +55,7 @@ QUrl QsUrlInterceptor::intercept(
 			// Qt.resolvedUrl and context->resolvedUrl can use this on qml files, in which
 			// case we want to keep the intercept, otherwise objects created from those paths
 			// will not be able to use singletons.
-			// Experimental: files without a preprocessed override are served as file: URLs too,
-			// so that one type has one URL (a type loaded under two URLs is two types).
-			if (path.endsWith(".qml") && this->fileIntercepts.contains(path)) return url;
+			if (path.endsWith(".qml")) return url;
 
 			auto newUrl = url;
 			newUrl.setScheme("file");
