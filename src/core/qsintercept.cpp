@@ -41,7 +41,9 @@ QUrl QsUrlInterceptor::intercept(
 	    && type != QQmlAbstractUrlInterceptor::DataType::UrlString)
 	{
 		auto path = url.toLocalFile();
-		for (const auto& root: {this->configRoot.path(), this->configRoot.canonicalPath()}) {
+		if (path.startsWith(this->fileVfsRoot % '/')) return url;
+
+		for (const auto& root: {this->configRootPath, this->configRootCanonical}) {
 			if (!root.isEmpty() && path.startsWith(root % '/')) {
 				auto fileUrl =
 				    QUrl::fromLocalFile(this->fileVfsRoot % "/qs/" % path.sliced(root.length() + 1));

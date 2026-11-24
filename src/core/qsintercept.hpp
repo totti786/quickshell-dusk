@@ -16,7 +16,10 @@ QS_DECLARE_LOGGING_CATEGORY(logQsIntercept);
 
 class QsUrlInterceptor: public QQmlAbstractUrlInterceptor {
 public:
-	explicit QsUrlInterceptor(const QDir& configRoot): configRoot(configRoot) {}
+	explicit QsUrlInterceptor(const QDir& configRoot)
+	    : configRoot(configRoot)
+	    , configRootPath(configRoot.path())
+	    , configRootCanonical(configRoot.canonicalPath()) {}
 
 	QUrl intercept(const QUrl& originalUrl, QQmlAbstractUrlInterceptor::DataType type) override;
 
@@ -26,6 +29,8 @@ public:
 
 private:
 	QDir configRoot;
+	QString configRootPath;
+	QString configRootCanonical;
 };
 
 class QsInterceptDataReply: public QNetworkReply {
